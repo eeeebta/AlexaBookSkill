@@ -4,12 +4,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 
 public class GoodreadsResponse {
-    // @JsonProperty("search")
+    @JsonProperty("search")
     private JsonNode search;
 
     // Ignoring field causes error
     // @JsonIgnore
-    // @JsonProperty("Request")
+    @JsonProperty("Request")
     private JsonNode Request;
 
     private results returnedResults = new results();
