@@ -56,7 +56,7 @@ public class GoodReadsAPIRepository {
         }
     }
 
-    public String getBookDetails(String bookNameInput) throws IOException, ParserConfigurationException, SAXException {
+    public String getBookDetails(String bookNameInput) throws IOException {
         String goodReadsURL = getGoodReadsURL(bookNameInput);
 
         URL url = new URL(goodReadsURL);
