@@ -1,6 +1,7 @@
 package com.amazon.audiblecambridgehshelloworldalexaskill.helloworld.repository;
 
 import com.amazon.audiblecambridgehshelloworldalexaskill.helloworld.api.GoodReadsAPI;
+import com.amazon.audiblecambridgehshelloworldalexaskill.helloworld.model.BookDetails;
 import com.amazonaws.services.simplesystemsmanagement.AWSSimpleSystemsManagement;
 import com.amazonaws.services.simplesystemsmanagement.model.GetParameterRequest;
 import com.amazonaws.services.simplesystemsmanagement.model.GetParameterResult;
@@ -11,9 +12,11 @@ import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.awt.print.Book;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.List;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -25,6 +28,7 @@ public class GoodReadsAPIRepositoryTest {
     @Before
     public void setup() {
 
+        // Creating mockSystemManager with properties that will allow it to run
         GetParameterRequest keyRequest = new GetParameterRequest();
         keyRequest.withName("GOOD_READS_KEY");
         mockSystemManager = mock(AWSSimpleSystemsManagement.class);
@@ -41,19 +45,18 @@ public class GoodReadsAPIRepositoryTest {
     }
 
     @Test
-    public void test_api() throws IOException {
+    public void test_api() {
 
         GoodReadsAPIRepository repo = new GoodReadsAPIRepository(mockSystemManager);
         try {
-            // String xml = getXml(); // Replace with getResponseMessage below
-            String xml = repo.getBookDetails("Harry Potter");
+            // Get book details for Harry Potter and the Sorcerer's Stone from the getBookDetails method
+            BookDetails xml = repo.getBookDetails("Harry Potter and the Sorcerer's Stone");
 
-            // ObjectMapper xmlMapper = new XmlMapper();
-            // PhoneDetails deserializedData = xmlMapper.readValue(xml, PhoneDetails.class);
-            // System.out.println(deserializedData);
-            System.out.println(xml);
+            // Print out the returned XML
+            System.out.println(xml.toString());
         }
         catch (Exception e) {
+            // If there is an exception print it out
             System.out.println(e.toString());
         }
 

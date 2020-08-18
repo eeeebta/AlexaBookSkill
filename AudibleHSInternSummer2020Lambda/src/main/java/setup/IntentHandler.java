@@ -1,19 +1,14 @@
-package example;
+package setup;
 
 import com.amazon.ask.Skill;
 import com.amazon.ask.Skills;
 import com.amazon.ask.SkillStreamHandler;
-import com.amazon.audiblecambridgehshelloworldalexaskill.helloworld.handlers.CancelandStopIntentHandler;
-import com.amazon.audiblecambridgehshelloworldalexaskill.helloworld.handlers.FindBookIntentHandler;
-import com.amazon.audiblecambridgehshelloworldalexaskill.helloworld.handlers.HelpIntentHandler;
-import com.amazon.audiblecambridgehshelloworldalexaskill.helloworld.handlers.SessionEndedRequestHandler;
-import com.amazon.audiblecambridgehshelloworldalexaskill.helloworld.handlers.LaunchRequestHandler;
-import com.amazon.audiblecambridgehshelloworldalexaskill.helloworld.handlers.FallbackIntentHandler;
+import com.amazon.audiblecambridgehshelloworldalexaskill.helloworld.handlers.*;
 
 /**
  * This skill is the entry point the skill
  */
-public class Hello extends SkillStreamHandler {
+public class IntentHandler extends SkillStreamHandler {
 
     private static Skill getSkill() {
         return Skills.standard()
@@ -25,7 +20,10 @@ public class Hello extends SkillStreamHandler {
                         new HelpIntentHandler(),
                         new LaunchRequestHandler(),
                         new SessionEndedRequestHandler(),
-                        new FallbackIntentHandler())
+                        new FallbackIntentHandler(),
+                        new AddToListIntentHandler())
+                .withAutoCreateTable(true)
+                .withTableName("UserData")
                 // Add your skill id below if you want? Not sure why.
                 //.withSkillId("")
                 .build();
@@ -35,7 +33,7 @@ public class Hello extends SkillStreamHandler {
      * Luckily a lot of this logic is written for us in a class called SkillStreamHandler
      * We just extend it (https://www.tutorialspoint.com/java/java_inheritance.htm)
      */
-    public Hello() {
+    public IntentHandler() {
         super(getSkill());
     }
 

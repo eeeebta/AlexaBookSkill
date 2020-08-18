@@ -4,7 +4,7 @@ public class BookDetails {
     // Add more variables and getter/setter methods
     private String bookName;
     private String authorName;
-
+    private String bookId;
 
     public String getBookName() {
         return bookName;
@@ -20,5 +20,13 @@ public class BookDetails {
 
     public void setAuthorName(String authorName) {
         this.authorName = authorName;
+    }
+
+    public String getBookId() {
+        return bookId;
+    }
+
+    public void setBookId(String bookId) {
+        this.bookId = bookId;
     }
 }
