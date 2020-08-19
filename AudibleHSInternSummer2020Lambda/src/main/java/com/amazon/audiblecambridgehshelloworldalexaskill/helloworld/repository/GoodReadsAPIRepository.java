@@ -97,7 +97,8 @@ public class GoodReadsAPIRepository {
             JSONObject bestBook = json.getJSONObject("GoodreadsResponse").getJSONObject("search").getJSONObject("results").getJSONArray("work").optJSONObject(0).getJSONObject("best_book");
             String title = bestBook.getString("title");
             String author = bestBook.getJSONObject("author").getString("name");
-            String bestBookId = Integer.toString(bestBook.getInt("id"));
+            String bestBookId = bestBook.getJSONObject("id").toString();
+            bestBookId = bestBookId.substring(28, bestBookId.length() - 1);
 
             // Print
             System.out.println("BEST BOOK: " + bestBook);
@@ -109,8 +110,9 @@ public class GoodReadsAPIRepository {
             bookDetails.add(title);
             bookDetails.add(author);
             bookDetails.add(bestBookId);
-        } catch (JSONException je) {
-            System.out.println(je.toString());
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.out.println(e.toString());
         }
         return bookDetails;
     }

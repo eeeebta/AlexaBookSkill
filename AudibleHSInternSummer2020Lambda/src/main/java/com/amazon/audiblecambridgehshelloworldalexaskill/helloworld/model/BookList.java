@@ -3,11 +3,12 @@ package com.amazon.audiblecambridgehshelloworldalexaskill.helloworld.model;
 import org.json.JSONObject;
 
 import java.util.List;
+import java.util.Map;
 
 public class BookList {
     // List name and list of books
     private String listName;
-    private List<BookDetails> bookDetails;
+    private Map<String, BookDetails> bookDetails;
 
 
     public String getListName() {
@@ -18,12 +19,12 @@ public class BookList {
         this.listName = listName;
     }
 
-    public List<BookDetails> getBookDetails() {
+
+    public Map<String, BookDetails> getBookDetails() {
         return bookDetails;
     }
 
-    public void setBookDetails(List<BookDetails> bookDetails) {
+    public void setBookDetails(Map<String, BookDetails> bookDetails) {
         this.bookDetails = bookDetails;
     }
-
 }

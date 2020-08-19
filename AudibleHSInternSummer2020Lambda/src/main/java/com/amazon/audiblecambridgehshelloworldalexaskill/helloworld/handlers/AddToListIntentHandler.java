@@ -6,10 +6,10 @@ import com.amazon.ask.model.Response;
 import com.amazon.ask.model.Slot;
 import com.amazon.audiblecambridgehshelloworldalexaskill.helloworld.dao.DynamoDBDAO;
 import com.amazon.audiblecambridgehshelloworldalexaskill.helloworld.model.BookDetails;
+import com.amazon.audiblecambridgehshelloworldalexaskill.helloworld.model.BookSaveStatus;
 import com.amazon.audiblecambridgehshelloworldalexaskill.helloworld.repository.GoodReadsAPIRepository;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -41,11 +41,13 @@ public class AddToListIntentHandler implements RequestHandler {
             BookDetails bookDetails = api.getBookDetails(bookName);
 
             DynamoDBDAO db = new DynamoDBDAO();
-            boolean result = db.saveList(listName, bookDetails, input);
+            BookSaveStatus result = db.saveList(listName, bookDetails, input);
 
-            if (result) {
+            if (result == BookSaveStatus.SAVED_BOOK) {
                 speechText = String.format("Saved %s to %s", bookName, listName);
                 // String.format("I found a book called %s by %s", bd.getBookName(), bd.getAuthorName());
+            } else if (result == BookSaveStatus.BOOK_EXISTS) {
+                speechText = String.format("%s is already in %s", bookName, listName);
             }
             else {
                 speechText = String.format("Could not save that book to %s", listName);
