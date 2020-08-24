@@ -85,6 +85,7 @@ public class DynamoDBDAOTest {
         HashMap<String, Object> expectedResult = getMockBookList(listName, expectedBookDetails);
 
         // HashMap<String, Object> expectedResult = getMockBookList(listName, expectedBookDetails);
+        // Use asserEquals instead of if/else statement
         if (result.equals(BookSaveStatus.BOOK_EXISTS)) {
             System.out.println("Result passed");
         }

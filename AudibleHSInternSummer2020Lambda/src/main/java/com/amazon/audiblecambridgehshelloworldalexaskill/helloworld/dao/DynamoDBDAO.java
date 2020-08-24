@@ -16,54 +16,55 @@ public class DynamoDBDAO {
 
     public BookSaveStatus saveList(String listName, BookDetails bookDetails, HandlerInput input) {
         try {
-            // To write book to a list per user
-
             // Gets existing bookLists/already existing objects
             Map<String, Object> persistentAttributes = new HashMap<>(input.getAttributesManager().getPersistentAttributes());
 
+            // Initialize ObjectMapper
             ObjectMapper mapper = new ObjectMapper();
 
+            // Create a MapType to feed in to
             MapType hashMapType = TypeFactory.defaultInstance().constructMapType(HashMap.class, String.class, BookList.class);
             try {
+                // Return user data
                 Object userListObject = persistentAttributes.get("user_list");
 
-                // Assumes userListObject is not null even when list does not exist...
-                // Did not want to end up using try/catch, but did because (userListObject != null) always ends up being true
+                // Check if the userListObject is not null
                 if (userListObject != null) {
-                    // Handle duplicates and append book to list
-                    // Multiple maps inside of the bigger map
-                    // Map of String, BookList
-                    // Turn BookList.class to HashMap<String, BookList>.class
 
-                    // Will except here if null
+                    // Convert JSON to HashMap
                     HashMap<String, BookList> bookListHashMap = mapper.readValue(userListObject.toString(), hashMapType);
 
-                    // This only works if a list exist, otherwise I need to create one without overwriting the existing HashMap
+                    // Initialize bookDetailMap and createdNewList
                     boolean createdNewList = false;
                     Map<String, List<BookDetails>> bookDetailsMap;
+
+                    // Save a previous version of the HashMap
                     HashMap<String, BookList> bookListHashMapBefore = bookListHashMap;
+
+                    // Check if the HashMap contains the listName key
                     if (bookListHashMap.containsKey(listName)) {
                         bookDetailsMap = bookListHashMap.get(listName).getBookDetails();
                     }
+                    // Otherwise create a new list with the book in the HashMap and set created new list to true
                     else {
                         bookListHashMap = createNewList(listName, bookDetails, bookListHashMap);
                         bookDetailsMap = bookListHashMap.get(listName).getBookDetails();
                         createdNewList = true;
                     }
 
-                    // Could move this above the try/catch to make it cleaner
+                    // Check if the book already exists in the list
                     boolean existsAlready = false;
                     for (Map.Entry<String, List<BookDetails>> book: bookListHashMapBefore.get(listName).getBookDetails().entrySet()) {
                         if (book.getKey().equals(bookDetails.getBookId()) && !createdNewList) {
-                            // Could return here that the book exists
+                            // TODO? Could return here that the book exists
                             existsAlready = true;
                             break;
                         }
-                        System.out.println("BOOK: " + book.getKey() + ", " + book.getValue().get(0) + "OTHERWISE: " + book.toString());
                     }
 
-                    // Check if the book is inside of the lists
+                    // Check if book already exists and if it does just return a BOOK_EXISTS response otherwise
                     if (!existsAlready) {
+                        // write the data to the user_list
                         bookDetailsMap.put(bookDetails.getBookId(), new ArrayList<>());
                         bookDetailsMap.get(bookDetails.getBookId()).add(bookDetails);
                         persistentAttributes.put("user_list",  mapper.writeValueAsString(bookListHashMap));
@@ -72,18 +73,20 @@ public class DynamoDBDAO {
                     }
 
                 } else {
+                    // Create a new HashMap since this is the first run
                     HashMap<String, BookList> bookListHashMap = new HashMap<>();
 
-                    // Change this to save hashmap of String, book list
+                    // Write new list and book to user_list
                     persistentAttributes.put("user_list",  mapper.writeValueAsString(createNewList(listName, bookDetails, bookListHashMap)));
                 }
             } catch (Exception e) {
+
+                // Return a SAVE_ERROR if this excepts
                 e.printStackTrace();
                 return BookSaveStatus.SAVE_ERROR;
             }
 
-
-            // set persistence attribute
+            // Set persistence attribute
             input.getAttributesManager().setPersistentAttributes(persistentAttributes);
 
             // Save to DynamoDb
@@ -93,32 +96,54 @@ public class DynamoDBDAO {
             return BookSaveStatus.SAVED_BOOK;
         }
         catch (Exception e) {
+
+            // Return SAVE_ERROR if an exception occurs
             e.printStackTrace();
             Utility.log(input, e.getMessage());
             return BookSaveStatus.SAVE_ERROR;
         }
     }
 
+
     public ReadingListResponse getList(String listName, HandlerInput input) throws IOException {
+
+        // Initialize response
         ReadingListResponse response = new ReadingListResponse();
+
+        // Retrieve persistentAttributes
         Map<String, Object> persistentAttributes = new HashMap<>(input.getAttributesManager().getPersistentAttributes());
 
-        // Is null sometimes so the first command cannot be what's on my list
+        // Grab the user_list
         Object userListObject = persistentAttributes.get("user_list");
+
+        // If the userListObject is null then return the failed response
         if (userListObject == null) {
-            response.setResponseMessage("Could not find the list");
+            response.setResponseMessage("You have no lists! Create one by asking me to \"Add (book name) to (list name)\"");
             response.setSuccessful(false);
             return response;
         }
 
+        // If userListObject isn't null then move onto converting the object to a HashMap
         ObjectMapper mapper = new ObjectMapper();
         MapType hashMapType = TypeFactory.defaultInstance().constructMapType(HashMap.class, String.class, BookList.class);
         HashMap<String, BookList> bookListHashMap = mapper.readValue(userListObject.toString(), hashMapType);
 
+        // Check if the bookListHashMap doesn't contain the list and return the appropriate response
+        if (!bookListHashMap.containsKey(listName)) {
+            response.setSuccessful(false);
+            response.setResponseMessage("That list does not exist. You can ask me \"Add (book name) to (list name)\" " +
+                    "and it will automatically create a list for you with that book in it");
+            return response;
+        }
+
+        // Get bookDetails from the list
         Map<String, List<BookDetails>> bookDetails = bookListHashMap.get(listName).getBookDetails();
 
+        // Make StringBuilder for response and keep count of number of books in the list
         StringBuilder bookNames = new StringBuilder();
         int currBook = 0;
+
+        // Nested loop to get the details of each book that are required
         for (Map.Entry<String, List<BookDetails>> bookEntry: bookDetails.entrySet()) {
             List<BookDetails> books = bookEntry.getValue();
             for (BookDetails book : books) {
@@ -144,16 +169,21 @@ public class DynamoDBDAO {
     }
 
     public String findUserLists(HandlerInput input) {
+        // Initialize variables and failure response
         String failedTextResponse = "You don't have any lists. Create them by saying \"Add (your book) to (your list name)\"";
         StringBuilder listTitles = new StringBuilder();
+
+        // Try to proceed with retrieving lists and list names
         try {
             int numOfLists = 0;
 
+            // Grab user_list and user data
             Map<String, Object> persistentAttributes = new HashMap<>(input.getAttributesManager().getPersistentAttributes());
             ObjectMapper mapper = new ObjectMapper();
             MapType hashMapType = TypeFactory.defaultInstance().constructMapType(HashMap.class, String.class, BookList.class);
             Object userListObject = persistentAttributes.get("user_list");
 
+            // If it isn't null then convert it and create a titles string with the list names
             if (userListObject != null) {
                 HashMap<String, BookList> bookListHashMap = mapper.readValue(userListObject.toString(), hashMapType);
 
@@ -171,6 +201,7 @@ public class DynamoDBDAO {
                 return failedTextResponse;
             }
 
+            // Return formatting of speech
             if (numOfLists < 10 && numOfLists > 1) {
                 return String.format("You have %s lists called %s", numToString(numOfLists), listTitles);
             } else if (numOfLists == 1){
@@ -180,30 +211,35 @@ public class DynamoDBDAO {
             }
 
         } catch (Exception e) {
+            // Otherwise return
             e.printStackTrace();
             return failedTextResponse;
         }
     }
 
     public boolean deleteList(String listName, HandlerInput input) {
-        // Load in the list/JSON object
-        // Look through and delete the key value pair corresponding to
-
+        // Try to load everything in
         try {
+            // Grab persistentAttributes and initialize mapper and hashMapType
             Map<String, Object> persistentAttributes = new HashMap<>(input.getAttributesManager().getPersistentAttributes());
             ObjectMapper mapper = new ObjectMapper();
             MapType hashMapType = TypeFactory.defaultInstance().constructMapType(HashMap.class, String.class, BookList.class);
 
             try {
+                // Grab user list
                 Object userListObject = persistentAttributes.get("user_list");
 
+                // Make sure userListObject is not null
                 if (userListObject != null) {
+
+                    // Turn user_list into HashMap
                     HashMap<String, BookList> bookListHashMap = mapper.readValue(userListObject.toString(), hashMapType);
 
+                    // Remove the corresponding list
                     bookListHashMap.remove(listName);
 
+                    // Rewrite the object to the DB
                     persistentAttributes.put("user_list",  mapper.writeValueAsString(bookListHashMap));
-
                 } else {
                     return false;
                 }
@@ -250,7 +286,7 @@ public class DynamoDBDAO {
         return bookListHashMapReturn;
     }
 
-    //
+    // Turn a number from 1-9 into a word
     private String numToString(int num) {
         String[] numLetArray = {"one", "two", "three", "four", "five", "six", "seven", "eight", "nine"};
 
