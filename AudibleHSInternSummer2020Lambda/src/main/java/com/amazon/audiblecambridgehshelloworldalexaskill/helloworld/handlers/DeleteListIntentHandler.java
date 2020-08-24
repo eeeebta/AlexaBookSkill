@@ -5,18 +5,16 @@ import com.amazon.ask.dispatcher.request.handler.RequestHandler;
 import com.amazon.ask.model.Response;
 import com.amazon.ask.model.Slot;
 import com.amazon.audiblecambridgehshelloworldalexaskill.helloworld.dao.DynamoDBDAO;
-import com.amazon.audiblecambridgehshelloworldalexaskill.helloworld.model.ReadingListResponse;
 
-import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
 
 import static com.amazon.ask.request.Predicates.intentName;
 
-public class ReadFromListIntentHandler implements RequestHandler {
+public class DeleteListIntentHandler implements RequestHandler {
     @Override
     public boolean canHandle(HandlerInput input) {
-        return input.matches(intentName("ReadFromListIntent"));
+        return input.matches(intentName("DeleteListIntent"));
     }
 
     @Override
@@ -26,34 +24,22 @@ public class ReadFromListIntentHandler implements RequestHandler {
 
         Map<String, Slot> slots = Utility.getSlots(input);
 
-        // Get slots
+
         String listName = slots.get("LIST_NAME").getValue();
 
         String speechText;
-
         DynamoDBDAO db = new DynamoDBDAO();
-
-        try {
-            ReadingListResponse response = db.getList(listName, input);
-            if (response.isSuccessful()) {
-                speechText = String.format("Your %s list has %s", listName, response.getResponseMessage());
-            } else {
-                speechText = response.getResponseMessage();
-            }
-        } catch (IOException e) {
-            speechText = "There was an error finding the books";
-            e.printStackTrace();
+        boolean dbResult = db.deleteList(listName, input);
+        if (dbResult) {
+            speechText = String.format("Successfully deleted %s", listName);
+        } else {
+            speechText = String.format("Unable to delete %s", listName);
         }
-
 
         return input.getResponseBuilder()
                 .withSpeech(speechText) // alexa says this
                 .withSimpleCard("HelloWorld", speechText) // alexa will show this on a screen
                 .build();
-    }
-    // User will give list name
-    // Read all the book
-    // Call dynamoDBDAO with new
-    // Read from user_list
 
+    }
 }

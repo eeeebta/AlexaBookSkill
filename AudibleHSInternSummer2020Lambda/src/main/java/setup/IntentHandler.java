@@ -22,7 +22,9 @@ public class IntentHandler extends SkillStreamHandler {
                         new SessionEndedRequestHandler(),
                         new FallbackIntentHandler(),
                         new AddToListIntentHandler(),
-                        new ReadFromListIntentHandler())
+                        new ReadFromListIntentHandler(),
+                        new DeleteListIntentHandler()
+                )
                 .withAutoCreateTable(true)
                 .withTableName("UserData")
                 // Add your skill id below if you want? Not sure why.

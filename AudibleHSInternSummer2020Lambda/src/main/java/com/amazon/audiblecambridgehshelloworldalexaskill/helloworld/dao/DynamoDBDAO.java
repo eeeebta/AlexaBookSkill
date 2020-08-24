@@ -7,15 +7,13 @@ import com.amazon.audiblecambridgehshelloworldalexaskill.helloworld.model.BookLi
 import com.amazon.audiblecambridgehshelloworldalexaskill.helloworld.model.BookSaveStatus;
 import com.amazon.audiblecambridgehshelloworldalexaskill.helloworld.model.ReadingListResponse;
 import com.amazonaws.services.dynamodbv2.xspec.S;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.json.JSONObject;
+import com.fasterxml.jackson.databind.type.MapType;
+import com.fasterxml.jackson.databind.type.TypeFactory;
 
+import javax.management.remote.SubjectDelegationPermission;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class DynamoDBDAO {
 
@@ -26,39 +24,54 @@ public class DynamoDBDAO {
             // Gets existing bookLists/already existing objects
             Map<String, Object> persistentAttributes = new HashMap<>(input.getAttributesManager().getPersistentAttributes());
 
-
-
             ObjectMapper mapper = new ObjectMapper();
 
+            MapType hashMapType = TypeFactory.defaultInstance().constructMapType(HashMap.class, String.class, BookList.class);
             try {
                 Object userListObject = persistentAttributes.get("user_list");
+
+                // Assumes userListObject is not null even when list does not exist...
+                // Did not want to end up using try/catch, but did because (userListObject != null) always ends up being true
                 if (userListObject != null) {
                     // Handle duplicates and append book to list
-                    BookList bookList = mapper.readValue(userListObject.toString(), BookList.class);
-                    System.out.println("USER_LIST_OBJECT: " + bookList);
+                    // Multiple maps inside of the bigger map
+                    // Map of String, BookList
+                    // Turn BookList.class to HashMap<String, BookList>.class
 
-                    Map<String, BookDetails> bookDetailsMap = bookList.getBookDetails();
-                    if (!bookDetailsMap.containsKey(bookDetails.getBookId())) {
-                        bookDetailsMap.put(bookDetails.getBookId(), bookDetails);
-                        persistentAttributes.put("user_list",  mapper.writeValueAsString(bookList));
+                    // Will except here if null
+                    HashMap<String, BookList> tmpBookListHashMap = mapper.readValue(userListObject.toString(), hashMapType);
+                    HashMap<String, BookList> bookListHashMap = tmpBookListHashMap;
+
+                    // This only works if a list exist, otherwise I need to create one without overwriting the existing HashMap
+                    Map<String, List<BookDetails>> bookDetailsMap;
+                    try {
+                        bookDetailsMap = bookListHashMap.get(listName).getBookDetails();
+                    } catch (Exception e) {
+                        bookListHashMap = createNewList(listName, bookDetails, tmpBookListHashMap);
+                        bookDetailsMap = bookListHashMap.get(listName).getBookDetails();
+                        e.printStackTrace();
+                    }
+                    boolean compareBooks = false;
+                    for (Map.Entry<String, List<BookDetails>> book: bookListHashMap.get(listName).getBookDetails().entrySet()) {
+                        compareBooks = book.getKey().equals(bookDetails.getBookId());
+                        System.out.println("BOOK: " + book.getKey() + ", " + book.getValue().get(0) + "OTHERWISE: " + book.toString());
+                    }
+
+                    // Check if the book
+                    if (!compareBooks) {
+                        bookDetailsMap.put(bookDetails.getBookId(), new ArrayList<>());
+                        bookDetailsMap.get(bookDetails.getBookId()).add(bookDetails);
+                        persistentAttributes.put("user_list",  mapper.writeValueAsString(bookListHashMap));
                     } else {
                         return BookSaveStatus.BOOK_EXISTS;
                     }
 
                 } else {
-                    // Create a book List
-                    BookList bookList = new BookList();
+                    HashMap<String, BookList> bookListHashMap = new HashMap<>();
 
-                    // Add the List Name
-                    bookList.setListName(listName);
-                    Map<String, BookDetails> bookDetailsMap = new HashMap<>();
-                    bookDetailsMap.put(bookDetails.getBookId(), bookDetails);
-                    // Set Book Details to the List
-                    // Add multiple without overwriting
-                    // Check if value exists and add to array instead of replacing
-                    bookList.setBookDetails(bookDetailsMap);
 
-                    persistentAttributes.put("user_list",  mapper.writeValueAsString(bookList));
+                    // Change this to save hashmap of String, book list
+                    persistentAttributes.put("user_list",  mapper.writeValueAsString(createNewList(listName, bookDetails, bookListHashMap)));
                 }
             } catch (Exception e) {
                 e.printStackTrace();
@@ -94,36 +107,97 @@ public class DynamoDBDAO {
             return response;
         }
 
-        System.out.println("USERLISTOBJECT TEST: " + userListObject);
-        System.out.println("PERSISTENT ATTRI: " + persistentAttributes);
-
-
         ObjectMapper mapper = new ObjectMapper();
-        BookList bookList = mapper.readValue(userListObject.toString(), BookList.class);
+        MapType hashMapType = TypeFactory.defaultInstance().constructMapType(HashMap.class, String.class, BookList.class);
+        HashMap<String, BookList> bookListHashMap = mapper.readValue(userListObject.toString(), hashMapType);
 
+        Map<String, List<BookDetails>> bookDetails = bookListHashMap.get(listName).getBookDetails();
 
-        Map<String, BookDetails> bookDetails = bookList.getBookDetails();
-
-        String bookNames = "";
+        StringBuilder bookNames = new StringBuilder();
         int currBook = 0;
-        for (Map.Entry<String, BookDetails> bookEntry: bookDetails.entrySet()) {
+        for (Map.Entry<String, List<BookDetails>> bookEntry: bookDetails.entrySet()) {
             String key = bookEntry.getKey();
-            BookDetails book = bookEntry.getValue();
-            if (bookDetails.entrySet().size() == 1) {
-                bookNames = bookNames + book.getBookName() + " by " + book.getAuthorName();
+            List<BookDetails> books = bookEntry.getValue();
+            for (BookDetails book : books) {
+                if (bookDetails.entrySet().size() == 1) {
+                    bookNames.append(book.getBookName()).append(" by ").append(book.getAuthorName());
+                }
+                else if (currBook == bookDetails.entrySet().size() - 1) {
+                    bookNames.append("and ").append(book.getBookName()).append(" by ").append(book.getAuthorName());
+                } else {
+                    bookNames.append(book.getBookName()).append(" by ").append(book.getAuthorName()).append(", ");
+                }
             }
-            else if (currBook == bookDetails.entrySet().size() - 1) {
-                bookNames = bookNames + "and " + book.getBookName() + " by " + book.getAuthorName();
-            } else {
-                bookNames = bookNames + book.getBookName() + " by " + book.getAuthorName() + ", ";
-            }
-            System.out.println("CURR_BOOK: " + currBook);
-            System.out.println("SIZE OF ARRAY: " + bookDetails.entrySet().size());
+
             currBook++;
         }
-        response.setResponseMessage(bookNames);
+        response.setResponseMessage(bookNames.toString());
         response.setSuccessful(true);
-        System.out.println("BOOKNAMES: " + bookNames);
         return response;
+    }
+
+    public boolean deleteList(String listName, HandlerInput input) {
+        // Load in the list/JSON object
+        // Look through and delete the key value pair corresponding to
+
+        try {
+            Map<String, Object> persistentAttributes = new HashMap<>(input.getAttributesManager().getPersistentAttributes());
+            ObjectMapper mapper = new ObjectMapper();
+            MapType hashMapType = TypeFactory.defaultInstance().constructMapType(HashMap.class, String.class, BookList.class);
+
+            try {
+                Object userListObject = persistentAttributes.get("user_list");
+
+                if (userListObject != null) {
+                    HashMap<String, BookList> bookListHashMap = mapper.readValue(userListObject.toString(), hashMapType);
+
+                    bookListHashMap.remove(listName);
+
+                    persistentAttributes.put("user_list",  mapper.writeValueAsString(bookListHashMap));
+
+                } else {
+                    return false;
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                return false;
+            }
+
+            // set persistence attribute
+            input.getAttributesManager().setPersistentAttributes(persistentAttributes);
+
+            // Save to DynamoDb
+            input.getAttributesManager().savePersistentAttributes();
+
+            // Return that book was saved
+            return true;
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+            Utility.log(input, e.getMessage());
+            return false;
+        }
+    }
+
+    private HashMap<String, BookList> createNewList(String listName, BookDetails bookDetails, HashMap<String, BookList> bookListHashMap) {
+        // Have to edit this to save to a map as opposed to just this list
+        // Create a book List
+        BookList bookList = new BookList();
+
+
+        // Add the List Name
+        bookList.setListName(listName);
+        Map<String, List<BookDetails>> bookDetailsMap = new HashMap<>();
+
+        // Creates a list and then adds it to that new list, in this case book details is added
+        bookDetailsMap.put(bookDetails.getBookId(), Arrays.asList(bookDetails));
+
+        // Set Book Details to the List
+        // Add multiple without overwriting
+        // Check if value exists and add to array instead of replacing
+        bookList.setBookDetails(bookDetailsMap);
+        bookListHashMap.put(listName, bookList);
+
+        return bookListHashMap;
     }
 }
