@@ -39,26 +39,35 @@ public class DynamoDBDAO {
                     // Turn BookList.class to HashMap<String, BookList>.class
 
                     // Will except here if null
-                    HashMap<String, BookList> tmpBookListHashMap = mapper.readValue(userListObject.toString(), hashMapType);
-                    HashMap<String, BookList> bookListHashMap = tmpBookListHashMap;
+                    HashMap<String, BookList> bookListHashMap = mapper.readValue(userListObject.toString(), hashMapType);
 
                     // This only works if a list exist, otherwise I need to create one without overwriting the existing HashMap
+                    boolean createdNewList = false;
                     Map<String, List<BookDetails>> bookDetailsMap;
+                    HashMap<String, BookList> bookListHashMapBefore = bookListHashMap;
                     try {
                         bookDetailsMap = bookListHashMap.get(listName).getBookDetails();
                     } catch (Exception e) {
-                        bookListHashMap = createNewList(listName, bookDetails, tmpBookListHashMap);
+                        // The error here is that a new list is created with the
+                        bookListHashMap = createNewList(listName, bookDetails, bookListHashMap);
                         bookDetailsMap = bookListHashMap.get(listName).getBookDetails();
+                        createdNewList = true;
                         e.printStackTrace();
                     }
-                    boolean compareBooks = false;
-                    for (Map.Entry<String, List<BookDetails>> book: bookListHashMap.get(listName).getBookDetails().entrySet()) {
-                        compareBooks = book.getKey().equals(bookDetails.getBookId());
+
+                    // Could move this above the try/catch to make it cleaner
+                    boolean existsAlready = false;
+                    for (Map.Entry<String, List<BookDetails>> book: bookListHashMapBefore.get(listName).getBookDetails().entrySet()) {
+                        if (book.getKey().equals(bookDetails.getBookId()) && !createdNewList) {
+                            // Could return here that the book exists
+                            existsAlready = true;
+                            break;
+                        }
                         System.out.println("BOOK: " + book.getKey() + ", " + book.getValue().get(0) + "OTHERWISE: " + book.toString());
                     }
 
-                    // Check if the book
-                    if (!compareBooks) {
+                    // Check if the book is inside of the lists
+                    if (!existsAlready) {
                         bookDetailsMap.put(bookDetails.getBookId(), new ArrayList<>());
                         bookDetailsMap.get(bookDetails.getBookId()).add(bookDetails);
                         persistentAttributes.put("user_list",  mapper.writeValueAsString(bookListHashMap));
@@ -179,7 +188,7 @@ public class DynamoDBDAO {
         }
     }
 
-    private HashMap<String, BookList> createNewList(String listName, BookDetails bookDetails, HashMap<String, BookList> bookListHashMap) {
+    private HashMap<String, BookList> createNewList(String listName, BookDetails bookDetails, HashMap<String, BookList> bookListHashMapReturn) {
         // Have to edit this to save to a map as opposed to just this list
         // Create a book List
         BookList bookList = new BookList();
@@ -196,8 +205,8 @@ public class DynamoDBDAO {
         // Add multiple without overwriting
         // Check if value exists and add to array instead of replacing
         bookList.setBookDetails(bookDetailsMap);
-        bookListHashMap.put(listName, bookList);
+        bookListHashMapReturn.put(listName, bookList);
 
-        return bookListHashMap;
+        return bookListHashMapReturn;
     }
 }
