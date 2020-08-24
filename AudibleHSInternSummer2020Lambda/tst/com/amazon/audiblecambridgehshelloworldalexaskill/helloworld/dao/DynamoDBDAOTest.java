@@ -5,15 +5,9 @@ import com.amazon.ask.dispatcher.request.handler.HandlerInput;
 import com.amazon.audiblecambridgehshelloworldalexaskill.helloworld.model.BookDetails;
 import com.amazon.audiblecambridgehshelloworldalexaskill.helloworld.model.BookList;
 import com.amazon.audiblecambridgehshelloworldalexaskill.helloworld.model.BookSaveStatus;
-import com.amazon.audiblecambridgehshelloworldalexaskill.helloworld.model.ReadingListResponse;
-import com.amazonaws.services.dynamodbv2.xspec.B;
-import com.amazonaws.services.simplesystemsmanagement.model.Parameter;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.Test;
-
-
-import java.awt.print.Book;
 import java.io.IOException;
 import java.util.*;
 

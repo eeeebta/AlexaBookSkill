@@ -23,7 +23,8 @@ public class IntentHandler extends SkillStreamHandler {
                         new FallbackIntentHandler(),
                         new AddToListIntentHandler(),
                         new ReadFromListIntentHandler(),
-                        new DeleteListIntentHandler()
+                        new DeleteListIntentHandler(),
+                        new FetchListsIntentHandler()
                 )
                 .withAutoCreateTable(true)
                 .withTableName("UserData")

@@ -6,12 +6,9 @@ import com.amazon.audiblecambridgehshelloworldalexaskill.helloworld.model.BookDe
 import com.amazon.audiblecambridgehshelloworldalexaskill.helloworld.model.BookList;
 import com.amazon.audiblecambridgehshelloworldalexaskill.helloworld.model.BookSaveStatus;
 import com.amazon.audiblecambridgehshelloworldalexaskill.helloworld.model.ReadingListResponse;
-import com.amazonaws.services.dynamodbv2.xspec.S;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.type.MapType;
 import com.fasterxml.jackson.databind.type.TypeFactory;
-
-import javax.management.remote.SubjectDelegationPermission;
 import java.io.IOException;
 import java.util.*;
 
@@ -45,14 +42,13 @@ public class DynamoDBDAO {
                     boolean createdNewList = false;
                     Map<String, List<BookDetails>> bookDetailsMap;
                     HashMap<String, BookList> bookListHashMapBefore = bookListHashMap;
-                    try {
+                    if (bookListHashMap.containsKey(listName)) {
                         bookDetailsMap = bookListHashMap.get(listName).getBookDetails();
-                    } catch (Exception e) {
-                        // The error here is that a new list is created with the
+                    }
+                    else {
                         bookListHashMap = createNewList(listName, bookDetails, bookListHashMap);
                         bookDetailsMap = bookListHashMap.get(listName).getBookDetails();
                         createdNewList = true;
-                        e.printStackTrace();
                     }
 
                     // Could move this above the try/catch to make it cleaner
@@ -77,7 +73,6 @@ public class DynamoDBDAO {
 
                 } else {
                     HashMap<String, BookList> bookListHashMap = new HashMap<>();
-
 
                     // Change this to save hashmap of String, book list
                     persistentAttributes.put("user_list",  mapper.writeValueAsString(createNewList(listName, bookDetails, bookListHashMap)));
@@ -125,7 +120,6 @@ public class DynamoDBDAO {
         StringBuilder bookNames = new StringBuilder();
         int currBook = 0;
         for (Map.Entry<String, List<BookDetails>> bookEntry: bookDetails.entrySet()) {
-            String key = bookEntry.getKey();
             List<BookDetails> books = bookEntry.getValue();
             for (BookDetails book : books) {
                 if (bookDetails.entrySet().size() == 1) {
@@ -138,11 +132,57 @@ public class DynamoDBDAO {
                 }
             }
 
+            // Might be better to use an iteration loop over a foreach loop, but this increments
+            // the current position inside of the list
             currBook++;
         }
+
+        // Could also return a "how many books are in the list" response
         response.setResponseMessage(bookNames.toString());
         response.setSuccessful(true);
         return response;
+    }
+
+    public String findUserLists(HandlerInput input) {
+        String failedTextResponse = "You don't have any lists. Create them by saying \"Add (your book) to (your list name)\"";
+        StringBuilder listTitles = new StringBuilder();
+        try {
+            int numOfLists = 0;
+
+            Map<String, Object> persistentAttributes = new HashMap<>(input.getAttributesManager().getPersistentAttributes());
+            ObjectMapper mapper = new ObjectMapper();
+            MapType hashMapType = TypeFactory.defaultInstance().constructMapType(HashMap.class, String.class, BookList.class);
+            Object userListObject = persistentAttributes.get("user_list");
+
+            if (userListObject != null) {
+                HashMap<String, BookList> bookListHashMap = mapper.readValue(userListObject.toString(), hashMapType);
+
+                for (Map.Entry<String, BookList> bookListKeyValPair: bookListHashMap.entrySet()) {
+                    if (bookListHashMap.size() == 1) {
+                        listTitles.append(bookListKeyValPair.getKey());
+                    } else if (numOfLists == bookListHashMap.entrySet().size() - 1) {
+                        listTitles.append("and ").append(bookListKeyValPair.getKey());
+                    } else {
+                        listTitles.append(bookListKeyValPair.getKey()).append(", ");
+                    }
+                    numOfLists++;
+                }
+            } else {
+                return failedTextResponse;
+            }
+
+            if (numOfLists < 10 && numOfLists > 1) {
+                return String.format("You have %s lists called %s", numToString(numOfLists), listTitles);
+            } else if (numOfLists == 1){
+                return String.format("You have one list called %s", listTitles);
+            } else {
+                return String.format("You have %s lists called %s", numOfLists, listTitles);
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return failedTextResponse;
+        }
     }
 
     public boolean deleteList(String listName, HandlerInput input) {
@@ -208,5 +248,12 @@ public class DynamoDBDAO {
         bookListHashMapReturn.put(listName, bookList);
 
         return bookListHashMapReturn;
+    }
+
+    //
+    private String numToString(int num) {
+        String[] numLetArray = {"one", "two", "three", "four", "five", "six", "seven", "eight", "nine"};
+
+        return numLetArray[num - 1];
     }
 }
